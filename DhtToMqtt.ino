@@ -18,7 +18,6 @@ boolean wifiConnected = false;
 int reportInterval =  15000;
 unsigned long now = 0;
 unsigned long nextPub = reportInterval;
-int ledpin = 13;
 volatile int ledstate = LOW;
 dht DHT;
 
@@ -72,8 +71,6 @@ void mqttPublished(void* response)
   debugPort.println("Published: Succes");
 }
 void setup() {
-  pinMode(ledpin, OUTPUT);
-  pinMode(3,INPUT_PULLUP);
   delay(5000);
   Serial.begin(19200);
   debugPort.begin(19200);
@@ -126,10 +123,9 @@ void loop() {
       char chTempe[10];
       String strHumid;
       String strTempe;
-        dtostrf(humid,1,2,chHumid);
+      dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
-      strHumid = String(chHumid);
-      strTempe = String(chTempe);
+
   
       mqtt.publish(MQTTTOPIC0,chHumid);
       mqtt.publish(MQTTTOPIC1,chTempe);
