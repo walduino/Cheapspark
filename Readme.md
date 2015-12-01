@@ -1,5 +1,9 @@
 # DHT TO MQTT
 
+## Credits
+
+All credits for this amazing library go to: [Waldonistan](https://github.com/walduino)
+
 ## Setup
 
 Add libraries to arduino : 
