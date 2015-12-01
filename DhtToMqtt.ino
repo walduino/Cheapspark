@@ -1,16 +1,10 @@
-/**
- * \file
- *       ESP8266 MQTT Bridge example
- * \author
- *       Tuan PM <tuanpm@live.com>
- */
 #include <SoftwareSerial.h>
 #include <espduino.h>
 #include <mqtt.h>
 #include <dht.h>
 
-#define MYSSID "tim"
-#define MYPASS "password"
+#define MYSSID "MY_SSID"
+#define MYPASS "MY_PASSWORD"
 #define BROKERIP "192.168.1.121"
 #define MQTTCLIENT "Cheapspark"
 #define MQTTTOPIC0 "/cheapspark/humi"
