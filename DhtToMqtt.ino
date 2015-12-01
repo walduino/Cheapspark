@@ -3,8 +3,8 @@
 #include <mqtt.h>
 #include <dht.h>
 
-#define MYSSID "MY_SSID"
-#define MYPASS "MY_PASSWORD"
+#define MYSSID "tim"
+#define MYPASS "PASSWORD"
 #define BROKERIP "192.168.1.121"
 #define MQTTCLIENT "Cheapspark"
 #define MQTTTOPIC0 "/cheapspark/humi"
@@ -18,9 +18,9 @@ boolean wifiConnected = false;
 int reportInterval =  15000;
 unsigned long now = 0;
 unsigned long nextPub = reportInterval;
+int ledpin = 13;
 volatile int ledstate = LOW;
 dht DHT;
-
 
 void wifiCb(void* response)
 {
@@ -33,7 +33,6 @@ void wifiCb(void* response)
       debugPort.println("WIFI CONNECTED");
       mqtt.connect(BROKERIP, 1883, false);
       wifiConnected = true;
-      //or mqtt.connect("host", 1883); /*without security ssl*/
     } else {
       wifiConnected = false;
       mqtt.disconnect();
@@ -45,7 +44,6 @@ void wifiCb(void* response)
 void mqttConnected(void* response)
 {
   debugPort.println("Connected");
-//  mqtt.subscribe(MQTTTOPIC); //or mqtt.subscribe("topic"); /*with qos = 0*/
   mqtt.publish(MQTTTOPIC0, "data0");
   mqtt.publish(MQTTTOPIC1, "data1");
 }
@@ -86,47 +84,41 @@ void setup() {
     while(1);
   }
 
-
   debugPort.println("ARDUINO: setup mqtt lwt");
-  mqtt.lwt("/lwt", "offline", 0, 0); //or mqtt.lwt("/lwt", "offline");
-
-  /*setup mqtt events */
-  //mqtt.connectedCb.attach(&mqttConnected);
-  //mqtt.disconnectedCb.attach(&mqttDisconnected);
-  //mqtt.publishedCb.attach(&mqttPublished);
-  //mqtt.dataCb.attach(&mqttData);
-
+  mqtt.lwt("/lwt", "offline", 0, 0);
+  
   /*setup wifi*/
   debugPort.println("ARDUINO: setup wifi");
   esp.wifiCb.attach(&wifiCb);
 
   esp.wifiConnect(MYSSID,MYPASS);
 
-
   debugPort.println("ARDUINO: system started");
 }
 
 void loop() {
   esp.process();
+  
   digitalWrite(ledpin, ledstate);
+  
   if(wifiConnected) {
     
     now = millis();
     
     if ((digitalRead(3) == HIGH) && now >= nextPub) { //alarm sensors are NC if using a switch make this LOW
+      
       nextPub = reportInterval + now;
       
       int chk = DHT.read44(12);
       float humid = DHT.humidity;
       float tempe = DHT.temperature;
+      
       char chHumid[10];
       char chTempe[10];
-      String strHumid;
-      String strTempe;
+      
       dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
 
-  
       mqtt.publish(MQTTTOPIC0,chHumid);
       mqtt.publish(MQTTTOPIC1,chTempe);
   
