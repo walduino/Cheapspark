@@ -75,7 +75,7 @@ void setup() {
   while(!esp.ready());
 
 //setup mqtt client");
-  if(!mqtt.begin(MQTTCLIENT, "", "", 120, 1)) {
+  if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
     while(1);
   }
 
