@@ -5,10 +5,15 @@
 #define MYSSID "tim"
 #define MYPASS "PASSWORD"
 #define BROKERIP "192.168.1.121"
-#define MQTTCLIENT "Cheapspark"
-#define MQTTTOPIC0 "/cheapspark/humi"
-#define MQTTTOPIC1 "/cheapspark/temp"
+#define MQTTCLIENT "cheapspark1"
+#define MQTTPTOPIC0 "humi"
+#define MQTTPTOPIC1 "temp"
+#define MQTTSTOPIC0 "commands"
 #define DHT_PIN 5
+#define REL1_PIN 9
+#define REL2_PIN 10
+#define REL3_PIN 11
+#define REL4_PIN 12
 
 
 ESP esp(&Serial, 4);
@@ -41,24 +46,41 @@ void wifiCb(void* response)
 
 void mqttConnected(void* response)
 {
-  mqtt.publish(MQTTTOPIC0, "data0");
-  mqtt.publish(MQTTTOPIC1, "data1");
+  delay(500);
+  mqtt.subscribe("/cheapspark1/commands");
+  mqtt.publish("/fb", MQTTCLIENT " online");
 }
+
+
 void mqttDisconnected(void* response)
 {
 
 }
+
+
 void mqttData(void* response)
 {
   RESPONSE res(response);
-
-//db  debugPort.print("Received: topic=");
+  char buffer[4];
   String topic = res.popString();
-//db  debugPort.println(topic);
-
-//db  debugPort.print("data=");
   String data = res.popString();
-//db  debugPort.println(data);
+//  ledstate = !ledstate;
+//  digitalWrite(ledpin, ledstate);
+//  if (topic = "/Cheapspark1/commands") {
+    data.toCharArray(buffer,4);
+    if (strcmp(buffer,"r11") == 0) digitalWrite(REL1_PIN,HIGH);
+    if (strcmp(buffer,"r10") == 0) digitalWrite(REL1_PIN,LOW);
+//    mqtt.publish("/debug", buffer);
+
+    if (strcmp(buffer,"r21") == 0) digitalWrite(REL2_PIN,HIGH);
+    if (strcmp(buffer,"r20") == 0) digitalWrite(REL2_PIN,LOW);
+
+    if (strcmp(buffer,"r31") == 0) digitalWrite(REL3_PIN,HIGH);
+    if (strcmp(buffer,"r30") == 0) digitalWrite(REL3_PIN,LOW);
+
+    if (strcmp(buffer,"r41") == 0) digitalWrite(REL4_PIN,HIGH);
+    if (strcmp(buffer,"r40") == 0) digitalWrite(REL4_PIN,LOW);
+
 
 }
 void mqttPublished(void* response)
@@ -66,6 +88,13 @@ void mqttPublished(void* response)
 //runs when publish is a success
 }
 void setup() {
+  
+  pinMode(REL1_PIN,OUTPUT);
+  pinMode(REL2_PIN,OUTPUT);
+  pinMode(REL3_PIN,OUTPUT);
+  pinMode(REL4_PIN,OUTPUT);
+  
+  
   delay(5000);
   Serial.begin(19200);
   esp.enable();
@@ -80,7 +109,14 @@ void setup() {
   }
 
 //setup mqtt lwt
-  mqtt.lwt("/lwt", "offline", 0, 0);
+  mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
+  
+/*setup mqtt events */
+  mqtt.connectedCb.attach(&mqttConnected);
+  mqtt.disconnectedCb.attach(&mqttDisconnected);
+  mqtt.publishedCb.attach(&mqttPublished);
+  mqtt.dataCb.attach(&mqttData);  
+  
   
   /*setup wifi*/
   esp.wifiCb.attach(&wifiCb);
@@ -90,9 +126,11 @@ void setup() {
 
 void loop() {
   esp.process();
-  digitalWrite(ledpin, ledstate);
+
   if(wifiConnected) {
     now = millis();
+
+
     if (now >= nextPub) {
       
       nextPub = reportInterval + now;
@@ -107,10 +145,10 @@ void loop() {
       dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
 
-      mqtt.publish(MQTTTOPIC0,chHumid);
-      mqtt.publish(MQTTTOPIC1,chTempe);
-  
-      ledstate = !ledstate;
+      mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC0),chHumid);
+      mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC1),chTempe);
+
+
     }
     
   }
