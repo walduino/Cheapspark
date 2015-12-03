@@ -6,8 +6,6 @@
 #define MYPASS "PASSWORD"
 #define BROKERIP "192.168.1.121"
 #define MQTTCLIENT "cheapspark1"
-#define MQTTPTOPIC0 "humi"
-#define MQTTPTOPIC1 "temp"
 #define MQTTSTOPIC0 "commands"
 #define DHT_PIN 5
 #define REL1_PIN 9
