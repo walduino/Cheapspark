@@ -139,19 +139,15 @@ void loop() {
       int chk = DHT.read22(DHT_PIN);
       float humid = DHT.humidity;
       float tempe = DHT.temperature;
-      int switchval = analogRead(0);
       
       char chHumid[10];
       char chTempe[10];
-      char chSwitch[10];
 
       dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
-      dtostrf(switchval,1,2,chSwitch);
 
       mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC0),chHumid);
       mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC1),chTempe);
-      mqtt.publish(("/" MQTTCLIENT "/switch"),chSwitch);
     }
     if ((switchval>500) && (switchstate == false)) {
       mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"Switch1On");
