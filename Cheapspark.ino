@@ -146,8 +146,8 @@ void loop() {
       dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
 
-      mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC0),chHumid);
-      mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC1),chTempe);
+      mqtt.publish(("/" MQTTCLIENT "/humi"),chHumid);
+      mqtt.publish(("/" MQTTCLIENT "/temp"),chTempe);
     }
     if ((switchval>500) && (switchstate == false)) {
       mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"Switch1On");
