@@ -23,7 +23,8 @@ int reportInterval =  15000;
 unsigned long now = 0;
 unsigned long nextPub = reportInterval;
 int ledpin = 13;
-volatile int ledstate = LOW;
+boolean ledstate = false;
+boolean switchstate = false;
 dht DHT;
 
 void wifiCb(void* response)
@@ -70,7 +71,6 @@ void mqttData(void* response)
     data.toCharArray(buffer,4);
     if (strcmp(buffer,"r11") == 0) digitalWrite(REL1_PIN,HIGH);
     if (strcmp(buffer,"r10") == 0) digitalWrite(REL1_PIN,LOW);
-//    mqtt.publish("/debug", buffer);
 
     if (strcmp(buffer,"r21") == 0) digitalWrite(REL2_PIN,HIGH);
     if (strcmp(buffer,"r20") == 0) digitalWrite(REL2_PIN,LOW);
@@ -81,14 +81,13 @@ void mqttData(void* response)
     if (strcmp(buffer,"r41") == 0) digitalWrite(REL4_PIN,HIGH);
     if (strcmp(buffer,"r40") == 0) digitalWrite(REL4_PIN,LOW);
 
-
 }
 void mqttPublished(void* response)
 {
 //runs when publish is a success
 }
 void setup() {
-  
+  switchstate = false;
   pinMode(REL1_PIN,OUTPUT);
   pinMode(REL2_PIN,OUTPUT);
   pinMode(REL3_PIN,OUTPUT);
@@ -129,7 +128,7 @@ void loop() {
 
   if(wifiConnected) {
     now = millis();
-
+    int switchval = analogRead(0);
 
     if (now >= nextPub) {
       
@@ -138,18 +137,27 @@ void loop() {
       int chk = DHT.read22(DHT_PIN);
       float humid = DHT.humidity;
       float tempe = DHT.temperature;
+      int switchval = analogRead(0);
       
       char chHumid[10];
       char chTempe[10];
-      
+      char chSwitch[10];
+
       dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
+      dtostrf(switchval,1,2,chSwitch);
 
       mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC0),chHumid);
       mqtt.publish(("/" MQTTCLIENT "/" MQTTPTOPIC1),chTempe);
-
-
+      mqtt.publish(("/" MQTTCLIENT "/switch"),chSwitch);
     }
-    
+    if ((switchval>500) && (switchstate == false)) {
+      mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"Switch1On");
+      switchstate = !switchstate;
+    }
+    if ((switchval<500) && (switchstate == true)) {
+      mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"Switch1Off");
+      switchstate = !switchstate;
+    }
   }
 }
