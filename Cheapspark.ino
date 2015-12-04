@@ -46,7 +46,7 @@ void wifiCb(void* response)
 void mqttConnected(void* response)
 {
   delay(500);
-  mqtt.subscribe("/cheapspark1/commands");
+  mqtt.subscribe(""/" MQTTCLIENT "/" MQTTSTOPIC0");
   mqtt.publish("/fb", MQTTCLIENT " online");
 }
 
