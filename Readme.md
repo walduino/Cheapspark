@@ -2,9 +2,9 @@
 
 ## What it does
 
-Send MQTT messages with data from sensors (currently dht22)
-Send MQTT messages when a switch is closed (pulling A0 to GND is 'a switch')
-Receive MQTT messages containing commands for relays
+Send MQTT messages with data from sensors (currently dht22)  
+Send MQTT messages when a switch is closed (currently pulling A0 to GND is a switch)  
+Receive MQTT messages containing commands for relays  
 
 ## Setup
 
