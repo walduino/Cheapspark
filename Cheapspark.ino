@@ -148,11 +148,11 @@ void loop() {
       mqtt.publish(("/" MQTTCLIENT "/temp"),chTempe);
     }
     if ((switchval>500) && (switchstate == false)) {
-      mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"Switch1On");
+      mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"s11");
       switchstate = !switchstate;
     }
     if ((switchval<500) && (switchstate == true)) {
-      mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"Switch1Off");
+      mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"s10");
       switchstate = !switchstate;
     }
   }
