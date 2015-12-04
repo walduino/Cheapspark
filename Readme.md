@@ -1,8 +1,10 @@
-# DHT TO MQTT
+# Cheapspark
 
-## Credits
+## What it does
 
-All credits for this amazing library go to: [Waldonistan](https://github.com/walduino)
+Send MQTT messages with data from sensors (currently dht22)
+Send MQTT messages when a switch is closed (pulling A0 to GND is 'a switch')
+Receive MQTT messages containing commands for relays
 
 ## Setup
 
