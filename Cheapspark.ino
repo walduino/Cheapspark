@@ -1,6 +1,7 @@
 #include <espduino.h>
 #include <mqtt.h>
 #include <dht.h>
+#include <rest.h>
 
 #define MYSSID "tim"
 #define MYPASS "PASSWORD"
@@ -16,6 +17,8 @@
 
 ESP esp(&Serial, 4);
 MQTT mqtt(&esp);
+REST rest(&esp);
+
 boolean wifiConnected = false;
 int reportInterval =  15000;
 int switchInterval = 100;
@@ -25,6 +28,7 @@ unsigned long nextPub = reportInterval;
 unsigned long nextSwitch = switchInterval;
 unsigned long nextPulse = pulseInterval;
 int ledpin = 13;
+boolean setupmode = false;
 boolean switchstate = false;
 boolean rel1_pulse = false;
 boolean rel2_pulse = false;
@@ -39,12 +43,12 @@ void wifiCb(void* response)
   if(res.getArgc() == 1) {
     res.popArgs((uint8_t*)&status, 4);
     if(status == STATION_GOT_IP) {        //WIFI CONNECTED
-      mqtt.connect(BROKERIP, 1883, false);
+      if (setupmode == false ) mqtt.connect(BROKERIP, 1883, false);
       wifiConnected = true;
     } else {
       wifiConnected = false;
       mqtt.disconnect();
-    }   
+    }
   }
 }
 
@@ -94,8 +98,9 @@ void setup() {
   pinMode(REL2_PIN,OUTPUT);
   pinMode(REL3_PIN,OUTPUT);
   pinMode(REL4_PIN,OUTPUT);
-  
-//setup ESP  
+  if (analogRead(0)>500) setupmode = true;
+
+//setup ESP
   delay(5000);
   Serial.begin(19200);
   esp.enable();
@@ -103,17 +108,25 @@ void setup() {
   esp.reset();
   delay(500);
   while(!esp.ready());
-//setup mqtt client");
-  if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
-    while(1);
+
+  if (setupmode == false){
+  //setup mqtt client");
+    if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
+      while(1);
+    }
+    //setup mqtt lwt
+    mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
+    //setup mqtt events
+    mqtt.connectedCb.attach(&mqttConnected);
+    mqtt.disconnectedCb.attach(&mqttDisconnected);
+    mqtt.publishedCb.attach(&mqttPublished);
+    mqtt.dataCb.attach(&mqttData);
   }
-//setup mqtt lwt
-  mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
-//setup mqtt events
-  mqtt.connectedCb.attach(&mqttConnected);
-  mqtt.disconnectedCb.attach(&mqttDisconnected);
-  mqtt.publishedCb.attach(&mqttPublished);
-  mqtt.dataCb.attach(&mqttData);  
+  if (setupmode == true){
+    if(!rest.begin("192.168.1.2")) {
+      while(1);
+    }
+  }
 //setup wifi
   esp.wifiCb.attach(&wifiCb);
   esp.wifiConnect(MYSSID,MYPASS);
@@ -123,13 +136,13 @@ void setup() {
 void loop() {
   esp.process();
 
-  if(wifiConnected) {
+  if((wifiConnected) && (setupmode = false)) {
     now = millis();
     int switchval = analogRead(0);
 
     if (now >= nextPub) {
       nextPub = reportInterval + now;
-      
+
       int chk = DHT.read22(DHT_PIN);
       float humid = DHT.humidity;
       float tempe = DHT.temperature;
@@ -153,11 +166,11 @@ void loop() {
         switchstate = !switchstate;
       }
     }
-    
+
     if (now >= nextPulse) {
       nextPulse = pulseInterval +  now;
       digitalWrite(ledpin,  !digitalRead(ledpin));
-      
+
       if ((rel1_pulse == true) && (digitalRead(REL1_PIN) == LOW)) digitalWrite(REL1_PIN,HIGH);
       else if ((rel1_pulse == true) && (digitalRead(REL1_PIN) == HIGH)) {
         rel1_pulse = false;
