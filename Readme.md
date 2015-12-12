@@ -9,10 +9,12 @@ Receive MQTT messages containing commands for relays
 ## Why you may need it
 
 My primary use is as a hardware interface for openhab (home automation)  
-For this purpose add a line to your items config looking something like this:
+For this purpose add some lines to your items config looking something like this:
 
 ```
 Switch mqttsw4 "CSP" (all) {mqtt=">[mqtt_broker:/cheapspark1/commands:command:ON:r11],>[mqtt_broker:/cheapspark1/commands:command:OFF:r10],<[mqtt_broker:/cheapspark1/commands:command:OFF:.*s10.*],<[mqtt_broker:/cheapspark1/commands:command:ON:.*s11.*"]"}
+Number Temp_DHT22 "Temperature DHT22 [%.1f °C]" (grTemperature) {mqtt="<[mybroker:/cheapspark1//temp:state:default]"}
+Number Humidity_DHT22 "Humidity DHT22 [%.1f %%]" (grHumidity) {mqtt="<[mybroker:/cheapspark1/humi:state:default]"}
 ```
 
 ## Setup
