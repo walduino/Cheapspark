@@ -1,13 +1,16 @@
 #include <espduino.h>
 #include <mqtt.h>
 #include <dht.h>
-#include <rest.h>
 
+#define SETUPSSID "CSSetupWifi"
+#define SETUPSSIDPW "cheapspark"
+#define SETUPBROKERIP "192.168.1.121"
+#define MQTTSETUPTOPIC "setup"
 #define MYSSID "tim"
 #define MYPASS "PASSWORD"
 #define BROKERIP "192.168.1.121"
 #define MQTTCLIENT "cheapspark1"
-#define MQTTSTOPIC0 "commands"
+#define MQTTTOPIC0 "commands"
 #define DHT_PIN 5
 #define REL1_PIN 9
 #define REL2_PIN 10
@@ -17,8 +20,6 @@
 
 ESP esp(&Serial, 4);
 MQTT mqtt(&esp);
-REST rest(&esp);
-
 boolean wifiConnected = false;
 int reportInterval =  15000;
 int switchInterval = 100;
@@ -43,8 +44,13 @@ void wifiCb(void* response)
   if(res.getArgc() == 1) {
     res.popArgs((uint8_t*)&status, 4);
     if(status == STATION_GOT_IP) {        //WIFI CONNECTED
-      if (setupmode == false ) mqtt.connect(BROKERIP, 1883, false);
-      wifiConnected = true;
+      if (setupmode == true){
+        mqtt.connect(SETUPBROKERIP, 1883, false);
+        wifiConnected = true;
+      } else {
+        mqtt.connect(BROKERIP, 1883, false);
+        wifiConnected = true;
+      }
     } else {
       wifiConnected = false;
       mqtt.disconnect();
@@ -55,8 +61,14 @@ void wifiCb(void* response)
 void mqttConnected(void* response)
 {
   delay(500);
-  mqtt.subscribe("/" MQTTCLIENT "/" MQTTSTOPIC0);
-  mqtt.publish("/fb", MQTTCLIENT " online");
+  if (setupmode == true){
+    mqtt.subscribe("/" MQTTCLIENT "/" MQTTSETUPTOPIC);
+    mqtt.publish("/fb", MQTTCLIENT " online and ready for setup");
+  } else {
+    mqtt.subscribe("/" MQTTCLIENT "/" MQTTTOPIC0);
+    mqtt.publish("/fb", MQTTCLIENT " online in normal mode");
+  }
+
 }
 
 
@@ -98,8 +110,7 @@ void setup() {
   pinMode(REL2_PIN,OUTPUT);
   pinMode(REL3_PIN,OUTPUT);
   pinMode(REL4_PIN,OUTPUT);
-  if (analogRead(0)>500) setupmode = true;
-
+  if (analogRead(0)<500) setupmode = true;
 //setup ESP
   delay(5000);
   Serial.begin(19200);
@@ -108,35 +119,27 @@ void setup() {
   esp.reset();
   delay(500);
   while(!esp.ready());
-
-  if (setupmode == false){
-  //setup mqtt client");
-    if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
-      while(1);
-    }
-    //setup mqtt lwt
-    mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
-    //setup mqtt events
-    mqtt.connectedCb.attach(&mqttConnected);
-    mqtt.disconnectedCb.attach(&mqttDisconnected);
-    mqtt.publishedCb.attach(&mqttPublished);
-    mqtt.dataCb.attach(&mqttData);
+//setup mqtt client");
+  if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
+    while(1);
   }
-  if (setupmode == true){
-    if(!rest.begin("192.168.1.2")) {
-      while(1);
-    }
-  }
+//setup mqtt lwt
+  mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
+//setup mqtt events
+  mqtt.connectedCb.attach(&mqttConnected);
+  mqtt.disconnectedCb.attach(&mqttDisconnected);
+  mqtt.publishedCb.attach(&mqttPublished);
+  mqtt.dataCb.attach(&mqttData);
 //setup wifi
   esp.wifiCb.attach(&wifiCb);
-  esp.wifiConnect(MYSSID,MYPASS);
-
+  if (setupmode == true) esp.wifiConnect(SETUPSSID,SETUPSSIDPW);
+  else esp.wifiConnect(MYSSID,MYPASS);
 }
 
 void loop() {
   esp.process();
 
-  if((wifiConnected) && (setupmode = false)) {
+ if((wifiConnected) && (setupmode == false)) {
     now = millis();
     int switchval = analogRead(0);
 
@@ -158,11 +161,11 @@ void loop() {
       nextSwitch = switchInterval + now;
 
       if ((switchval>500) && (switchstate == false)) {
-        mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"s11");
+        mqtt.publish(("/" MQTTCLIENT "/" MQTTTOPIC0),"s11");
         switchstate = !switchstate;
       }
       if ((switchval<500) && (switchstate == true)) {
-        mqtt.publish(("/" MQTTCLIENT "/" MQTTSTOPIC0),"s10");
+        mqtt.publish(("/" MQTTCLIENT "/" MQTTTOPIC0),"s10");
         switchstate = !switchstate;
       }
     }
@@ -177,5 +180,8 @@ void loop() {
         digitalWrite(REL1_PIN,LOW);
       }
     }
+  }
+  if((wifiConnected) && (setupmode == true)) {
+
   }
 }
