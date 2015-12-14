@@ -157,9 +157,10 @@ void setup() {
 
 
 
-// Writes a string starting at the specified address.
-// Returns true if the whole string is successfully written.
+
 boolean eeprom_write_string(int addr, const char* string) {
+  // Writes a string starting at the specified address.
+  // Returns true if the whole string is successfully written.
   int numBytes;
   numBytes = strlen(string) + 1;
   return eeprom_write_bytes(addr, (const byte*)string, numBytes);
@@ -167,10 +168,11 @@ boolean eeprom_write_string(int addr, const char* string) {
 
 
 //
-// Reads a string starting from the specified address.
-// Returns true if at least one byte (even only the
-// string terminator one) is read.
+
 boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
+  // Reads a string starting from the specified address.
+  // Returns true if at least one byte (even only the
+  // string terminator one) is read.
   byte ch;  // byte read from eeprom
   int bytesRead;  // number of bytes read so far
   if (!eeprom_is_addr_ok(addr)) return false;   // check start address
@@ -194,27 +196,19 @@ boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
     bytesRead++;     // increment byte counter
 
   }
-  // make sure the user buffer has a string terminator (0x00) as its last byte
-  if ((ch != 0x00) && (bytesRead >= 1)) buffer[bytesRead - 1] = 0;
+  if ((ch != 0x00) && (bytesRead >= 1)) buffer[bytesRead - 1] = 0;  // make sure the user buffer has a string terminator (0x00) as its last byte
   return true;
 }
 
 boolean eeprom_write_bytes(int startAddr, const byte* array, int numBytes) {
-  // counter
-  int i;
-
-  // both first byte and last byte addresses must fall within
-  // the allowed range
-  if (!eeprom_is_addr_ok(startAddr) || !eeprom_is_addr_ok(startAddr + numBytes)) {
-    return false;
-  }
-
+  int i;  // counter
+  if (!eeprom_is_addr_ok(startAddr) || !eeprom_is_addr_ok(startAddr + numBytes)) return false;   // both first byte and last byte addresses must fall within the allowed range
   for (i = 0; i < numBytes; i++) {
     EEPROM.write(startAddr + i, array[i]);
   }
-
   return true;
 }
+
 boolean eeprom_is_addr_ok(int addr) {
   return ((addr >= EEPROM_MIN_ADDR) && (addr <= EEPROM_MAX_ADDR));
 }
