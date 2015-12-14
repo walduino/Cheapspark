@@ -267,15 +267,15 @@ void loop() {
     if (now >= nextPub) {
       nextPub = reportInterval + now;
 
-//      int chk = DHT.read22(DHT_PIN);
-//      float humid = DHT.humidity;
-//      float tempe = DHT.temperature;
-//      char chHumid[10];
-//      char chTempe[10];
-//      dtostrf(humid,1,2,chHumid);
-//      dtostrf(tempe,1,2,chTempe);
-//      mqtt.publish(("/" MQTTCLIENT "/humi"),chHumid);
-//      mqtt.publish(("/" MQTTCLIENT "/temp"),chTempe);
+     int chk = DHT.read22(DHT_PIN);
+     float humid = DHT.humidity;
+     float tempe = DHT.temperature;
+     char chHumid[10];
+     char chTempe[10];
+     dtostrf(humid,1,2,chHumid);
+     dtostrf(tempe,1,2,chTempe);
+     mqtt.publish(("/" MQTTCLIENT "/humi"),chHumid);
+     mqtt.publish(("/" MQTTCLIENT "/temp"),chTempe);
     }
 
     if (now >= nextSwitch) {
