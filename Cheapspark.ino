@@ -86,12 +86,6 @@ void mqttData(void* response){
   String topic = res.popString();
   String data = res.popString();
   if (setupmode == true){
-//     char str[] = "this is a test";
-//     char *test[10];
-//     test[0] = strtok(str, " "); // Splits spaces between words in str
-//     printf ("%s\n",test[0]); // Writes "this"
-//     test[1] = strtok (NULL, " ,.-");
-//     printf ("%s\n",test[1]); // Writes "is"
   data.toCharArray(buffer,40);
   char *setupinfo[16];
   setupinfo[0] = strtok(buffer, " "); //SSID
