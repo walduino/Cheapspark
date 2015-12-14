@@ -86,29 +86,18 @@ void mqttData(void* response){
   String topic = res.popString();
   String data = res.popString();
   if (setupmode == true){
-//     char str[] = "this is a test";
-//     char *test[10];
-//     test[0] = strtok(str, " "); // Splits spaces between words in str
-//     printf ("%s\n",test[0]); // Writes "this"
-//     test[1] = strtok (NULL, " ,.-");
-//     printf ("%s\n",test[1]); // Writes "is"
-  data.toCharArray(buffer,40);
-  char *setupinfo[16];
-  setupinfo[0] = strtok(buffer, " "); //SSID
-  setupinfo[1] = strtok(NULL, " "); //WIFIPW
-  setupinfo[2] = strtok(NULL, " "); //BROKERIP
-  eeprom_write_string(100, setupinfo[0]);
-  mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[0]);
-  eeprom_write_string(228, setupinfo[1]);
-  mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[1]);
-  eeprom_write_string(356, setupinfo[2]);
-  mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[2]);
-  digitalWrite(ledpin,  !digitalRead(ledpin));
-
-
-
-
-
+    data.toCharArray(buffer,40);
+    char *setupinfo[16];
+    setupinfo[0] = strtok(buffer, " "); //SSID
+    setupinfo[1] = strtok(NULL, " "); //WIFIPW
+    setupinfo[2] = strtok(NULL, " "); //BROKERIP
+    eeprom_write_string(100, setupinfo[0]);
+    mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[0]);
+    eeprom_write_string(228, setupinfo[1]);
+    mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[1]);
+    eeprom_write_string(356, setupinfo[2]);
+    mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[2]);
+    digitalWrite(ledpin,  !digitalRead(ledpin));
   } else {
     data.toCharArray(buffer,4);
     if (strcmp(buffer,"r11") == 0) digitalWrite(REL1_PIN,HIGH);
@@ -124,9 +113,6 @@ void mqttData(void* response){
     else if (strcmp(buffer,"r40") == 0) digitalWrite(REL4_PIN,LOW);
     else if (strcmp(buffer,"r4p") == 0) rel4_pulse = true;
   }
-    data.toCharArray(buffer,4);
-
-
 }
 void mqttPublished(void* response)
 {
@@ -185,49 +171,31 @@ boolean eeprom_write_string(int addr, const char* string) {
 // Returns true if at least one byte (even only the
 // string terminator one) is read.
 boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
-  // byte read from eeprom
-  byte ch;
-  // number of bytes read so far
-  int bytesRead;
-  // check start address
-  if (!eeprom_is_addr_ok(addr)) {
-    return false;
-  }
-  // how can we store bytes in an empty buffer ?
-  if (bufSize == 0) {
-    return false;
-  }
-  // is there is room for the string terminator only,
-  // no reason to go further
-  if (bufSize == 1) {
+  byte ch;  // byte read from eeprom
+  int bytesRead;  // number of bytes read so far
+  if (!eeprom_is_addr_ok(addr)) return false;   // check start address
+  if (bufSize == 0) return false;   // how can we store bytes in an empty buffer ?
+  if (bufSize == 1) {   // is there is room for the string terminator only,no reason to go further
     buffer[0] = 0;
     return true;
   }
-  // initialize byte counter
-  bytesRead = 0;
-  // read next byte from eeprom
-  ch = EEPROM.read(addr + bytesRead);
-  // store it into the user buffer
-  buffer[bytesRead] = ch;
-  // increment byte counter
-  bytesRead++;
+  bytesRead = 0;   // initialize byte counter
+  ch = EEPROM.read(addr + bytesRead);   // read next byte from eeprom
+  buffer[bytesRead] = ch;   // store it into the user buffer
+  bytesRead++;   // increment byte counter
+
   // stop conditions:
   // - the character just read is the string terminator one (0x00)
   // - we have filled the user buffer
   // - we have reached the last eeprom address
   while ( (ch != 0x00) && (bytesRead < bufSize) && ((addr + bytesRead) <= EEPROM_MAX_ADDR) ) {
-    // if no stop condition is met, read the next byte from eeprom
-    ch = EEPROM.read(addr + bytesRead);
-    // store it into the user buffer
-    buffer[bytesRead] = ch;
-    // increment byte counter
-    bytesRead++;
+    ch = EEPROM.read(addr + bytesRead);     // if no stop condition is met, read the next byte from eeprom
+    buffer[bytesRead] = ch;     // store it into the user buffer
+    bytesRead++;     // increment byte counter
+
   }
-  // make sure the user buffer has a string terminator
-  // (0x00) as its last byte
-  if ((ch != 0x00) && (bytesRead >= 1)) {
-    buffer[bytesRead - 1] = 0;
-  }
+  // make sure the user buffer has a string terminator (0x00) as its last byte
+  if ((ch != 0x00) && (bytesRead >= 1)) buffer[bytesRead - 1] = 0;
   return true;
 }
 
