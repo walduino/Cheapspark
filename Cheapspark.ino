@@ -3,12 +3,13 @@
 #include <dht.h>
 #include <EEPROM.h>
 
-#define SETUPSSID "CSSetupWifi"
+
+#define SETUPSSID "CSsetupwifi"
 #define SETUPSSIDPW "cheapspark"
-#define SETUPBROKERIP "192.168.1.121"
-#define MQTTSETUPTOPIC "setup"
-#define MQTTCLIENT "cheapspark99"
+#define SETUPBROKERIP "192.168.1.125"
+#define SETUPMQTTCLIENT "cheapspark666"
 #define MQTTTOPIC0 "commands"
+#define SETUPMQTTTOPIC "setup"
 #define DHT_PIN 5
 #define REL1_PIN 9
 #define REL2_PIN 10
@@ -21,6 +22,7 @@ MQTT mqtt(&esp);
 
 const int EEPROM_MIN_ADDR = 0;
 const int EEPROM_MAX_ADDR = 511;
+char eepromMqttClientName[20];
 boolean wifiConnected = false;
 int reportInterval =  15000;
 int switchInterval = 100;
@@ -49,7 +51,7 @@ void wifiCb(void* response){
         wifiConnected = true;
       } else {
         char eepromBroker[20];
-        eeprom_read_string(356, eepromBroker, 20); //ssid
+        eeprom_read_string(356, eepromBroker, 20); //broker adress
         mqtt.connect(eepromBroker, 1883, false);
         wifiConnected = true;
       }
@@ -63,11 +65,16 @@ void wifiCb(void* response){
 void mqttConnected(void* response){
   delay(500);
   if (setupmode == true){
-    mqtt.subscribe("/" MQTTCLIENT "/" MQTTSETUPTOPIC);
-    mqtt.publish("/fb", MQTTCLIENT " online and ready for setup");
+    mqtt.subscribe("/" SETUPMQTTCLIENT "/" SETUPMQTTTOPIC);
+    mqtt.publish("/fb","ready4setup");
   } else {
-    mqtt.subscribe("/" MQTTCLIENT "/" MQTTTOPIC0);
-    mqtt.publish("/fb", MQTTCLIENT " online in normal mode");
+    char topic[40];
+    strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
+    mqtt.subscribe(topic);
+    
+    char fbmsg[40];
+    strcat(strcpy(fbmsg,eepromMqttClientName), " online in normal mode");
+    mqtt.publish("/fb",fbmsg);
   }
 }
 
@@ -75,21 +82,26 @@ void mqttDisconnected(void* response){}
 
 void mqttData(void* response){
   RESPONSE res(response);
-  char buffer[48];
+  char buffer[64];
   String topic = res.popString();
   String data = res.popString();
   if (setupmode == true){
-    data.toCharArray(buffer,40);
+    data.toCharArray(buffer,64);
     char *setupinfo[16];
     setupinfo[0] = strtok(buffer, " "); //SSID
     setupinfo[1] = strtok(NULL, " "); //WIFIPW
     setupinfo[2] = strtok(NULL, " "); //BROKERIP
+    setupinfo[3] = strtok(NULL, " "); //MQTTCLIENTNAME
     eeprom_write_string(100, setupinfo[0]);
-    mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[0]);
     eeprom_write_string(228, setupinfo[1]);
-    mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[1]);
     eeprom_write_string(356, setupinfo[2]);
-    mqtt.publish(("/" MQTTCLIENT "/tester"),setupinfo[2]);
+    eeprom_write_string(484, setupinfo[3]);
+    char topic[40];
+    strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/config");
+    mqtt.publish(topic,setupinfo[0]);
+    mqtt.publish(topic,setupinfo[1]);
+    mqtt.publish(topic,setupinfo[2]);
+    mqtt.publish(topic,setupinfo[3]);
     digitalWrite(ledpin,  !digitalRead(ledpin));
   } else {
     data.toCharArray(buffer,4);
@@ -111,7 +123,6 @@ void mqttData(void* response){
 void mqttPublished(void* response){}   //runs when publish is a success
 
 void setup(){
-  // switchstate = false;
   pinMode(A0,INPUT);
   digitalWrite(A0,HIGH);
   pinMode(REL1_PIN,OUTPUT);
@@ -119,6 +130,7 @@ void setup(){
   pinMode(REL3_PIN,OUTPUT);
   pinMode(REL4_PIN,OUTPUT);
   if (analogRead(0)<500) setupmode = true;
+  eeprom_read_string(484, eepromMqttClientName, 20); // read client name intro global var
   //setup ESP
   delay(5000);
   Serial.begin(19200);
@@ -128,11 +140,19 @@ void setup(){
   delay(500);
   while(!esp.ready());
   //setup mqtt client");
-  if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
-    while(1);
+  if (setupmode == true){
+    if(!mqtt.begin(SETUPMQTTCLIENT, "", "", 30, 1)) {
+      while(1);
+    }
+  } else {
+    if(!mqtt.begin(eepromMqttClientName, "", "", 30, 1)) {
+      while(1);
+    }
   }
   //setup mqtt lwt
-  mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
+  char ch_lwt[40];
+  strcat(strcpy(ch_lwt,eepromMqttClientName), " offline");
+  mqtt.lwt("/lwt", ch_lwt, 0, 0);
   //setup mqtt events
   mqtt.connectedCb.attach(&mqttConnected);
   mqtt.disconnectedCb.attach(&mqttDisconnected);
@@ -206,30 +226,33 @@ void loop() {
   esp.process();
 
  if((wifiConnected) && (setupmode == false)) {
+    char topic[40];
     now = millis();
     int switchval = analogRead(0);
 
     if (now >= nextPub) {
       nextPub = reportInterval + now;
-
-     int chk = DHT.read22(DHT_PIN);
-     float humid = DHT.humidity;
-     float tempe = DHT.temperature;
-     char chHumid[10];
-     char chTempe[10];
-     dtostrf(humid,1,2,chHumid);
-     dtostrf(tempe,1,2,chTempe);
-     mqtt.publish(("/" MQTTCLIENT "/humi"),chHumid);
-     mqtt.publish(("/" MQTTCLIENT "/temp"),chTempe);
+      int chk = DHT.read22(DHT_PIN);
+      float humid = DHT.humidity;
+      float tempe = DHT.temperature;
+      char chHumid[10];
+      char chTempe[10];
+      dtostrf(humid,1,2,chHumid);
+      dtostrf(tempe,1,2,chTempe);
+      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/humi");
+      mqtt.publish(topic,chHumid);
+      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/temp");
+      mqtt.publish(topic,chTempe);
     }
     if (now >= nextSwitch) {
       nextSwitch = switchInterval + now;
+      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
       if ((switchval>500) && (switchstate == false)) {
-        mqtt.publish(("/" MQTTCLIENT "/" MQTTTOPIC0),"s11");
+        mqtt.publish(topic,"s11");
         switchstate = !switchstate;
       }
       if ((switchval<500) && (switchstate == true)) {
-        mqtt.publish(("/" MQTTCLIENT "/" MQTTTOPIC0),"s10");
+        mqtt.publish(topic,"s10");
         switchstate = !switchstate;
       }
     }
@@ -242,19 +265,25 @@ void loop() {
       }
     }
   }
+
   if((wifiConnected) && (setupmode == true)) {
     now = millis();
-    char tester[20];
     if (now >= nextPub) {
+      char tester[20];
+      char topic[40];
       nextPub = reportInterval + now;
+      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/config");
       eeprom_read_string(100, tester, 20);
-      mqtt.publish(("/" MQTTCLIENT "/tester"),tester);
+      mqtt.publish(topic,tester);
       delay(100);
       eeprom_read_string(228, tester, 20);
-      mqtt.publish(("/" MQTTCLIENT "/tester"),tester);
+      mqtt.publish(topic,tester);
       delay(100);
       eeprom_read_string(356, tester, 20);
-      mqtt.publish(("/" MQTTCLIENT "/tester"),tester);
+      mqtt.publish(topic,tester);
+      delay(100);
+      eeprom_read_string(484, tester, 20);
+      mqtt.publish(topic,tester);
     }
   }
 }
