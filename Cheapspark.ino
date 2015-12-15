@@ -51,7 +51,9 @@ void wifiCb(void* response){
         mqtt.connect(SETUPBROKERIP, 1883, false);
         wifiConnected = true;
       } else {
-        mqtt.connect(BROKERIP, 1883, false);
+        char eepromBroker[20];
+        eeprom_read_string(356, eepromBroker, 20); //ssid
+        mqtt.connect(eepromBroker, 1883, false);
         wifiConnected = true;
       }
     } else {
