@@ -17,6 +17,15 @@ Switch mqttsw2 "Relay Pulse" (all) {mqtt=">[mqtt_broker:/cheapspark1/commands:co
 Number Temp_DHT22 "Temperature DHT22 [%.1f °C]" (grTemperature) {mqtt="<[mqtt_broker:/cheapspark1/temp:state:default]"}
 Number Humidity_DHT22 "Humidity DHT22 [%.1f %%]" (grHumidity) {mqtt="<[mqtt_broker:/cheapspark1/humi:state:default]"}
 ```
+## How to use it
+The wifi settings and broker ip ,used in normal operation mode are held in the EEPROM on the arduino, so it's important to get that info in there first.  
+
+To write the settings to the EEPROM bridge analog0(A0) to GND and power the arduino.
+At this point the ESP module will connect to the setup wifi (SETUPSSID in the code) "CSSetupWifi" with password (SETUPSSIDPW in the code) "cheapspark". The setup broker can also be defined in the code  
+
+Send a message on /Cheapspark99/setup containing "WIFISSID WIFIPW IP.OF.BRO.KER" this info wil be interpretted as space delimited and stored in EEPROM.  
+
+Remove the bridge between A0 and GND and reboot. The ESP will now connect to the SSID and broker defined in EEPROM
 
 ## Setup
 
