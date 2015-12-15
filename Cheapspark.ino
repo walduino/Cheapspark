@@ -41,8 +41,7 @@ boolean rel3_pulse = false;
 boolean rel4_pulse = false;
 dht DHT;
 
-void wifiCb(void* response)
-{
+void wifiCb(void* response){
   uint32_t status;
   RESPONSE res(response);
   if(res.getArgc() == 1) {
@@ -62,8 +61,7 @@ void wifiCb(void* response)
   }
 }
 
-void mqttConnected(void* response)
-{
+void mqttConnected(void* response){
   delay(500);
   if (setupmode == true){
     mqtt.subscribe("/" MQTTCLIENT "/" MQTTSETUPTOPIC);
@@ -72,13 +70,9 @@ void mqttConnected(void* response)
     mqtt.subscribe("/" MQTTCLIENT "/" MQTTTOPIC0);
     mqtt.publish("/fb", MQTTCLIENT " online in normal mode");
   }
-
 }
 
-
-void mqttDisconnected(void* response){
-}
-
+void mqttDisconnected(void* response){}
 
 void mqttData(void* response){
   RESPONSE res(response);
@@ -114,12 +108,11 @@ void mqttData(void* response){
     else if (strcmp(buffer,"r4p") == 0) rel4_pulse = true;
   }
 }
-void mqttPublished(void* response)
-{
-//runs when publish is a success
-}
-void setup() {
-  switchstate = false;
+
+void mqttPublished(void* response){}   //runs when publish is a success
+
+void setup(){
+  // switchstate = false;
   pinMode(A0,INPUT);
   digitalWrite(A0,HIGH);
   pinMode(REL1_PIN,OUTPUT);
@@ -127,7 +120,7 @@ void setup() {
   pinMode(REL3_PIN,OUTPUT);
   pinMode(REL4_PIN,OUTPUT);
   if (analogRead(0)<500) setupmode = true;
-//setup ESP
+  //setup ESP
   delay(5000);
   Serial.begin(19200);
   esp.enable();
@@ -135,28 +128,28 @@ void setup() {
   esp.reset();
   delay(500);
   while(!esp.ready());
-//setup mqtt client");
+  //setup mqtt client");
   if(!mqtt.begin(MQTTCLIENT, "", "", 30, 1)) {
     while(1);
   }
-//setup mqtt lwt
+  //setup mqtt lwt
   mqtt.lwt("/lwt", MQTTCLIENT " offline", 0, 0);
-//setup mqtt events
+  //setup mqtt events
   mqtt.connectedCb.attach(&mqttConnected);
   mqtt.disconnectedCb.attach(&mqttDisconnected);
   mqtt.publishedCb.attach(&mqttPublished);
   mqtt.dataCb.attach(&mqttData);
-//setup wifi
+  //setup wifi
   esp.wifiCb.attach(&wifiCb);
   if (setupmode == true) esp.wifiConnect(SETUPSSID,SETUPSSIDPW);
-  else esp.wifiConnect(MYSSID,MYPASS);
+  else {
+    char eepromSsid[20];
+    char eepromWifiPw[20];
+    eeprom_read_string(100, eepromSsid, 20); //ssid
+    eeprom_read_string(228, eepromWifiPw, 20); // wifipasswd
+    esp.wifiConnect(eepromSsid,eepromWifiPw);
+  }
 }
-
-
-
-
-
-
 
 boolean eeprom_write_string(int addr, const char* string) {
   // Writes a string starting at the specified address.
@@ -165,9 +158,6 @@ boolean eeprom_write_string(int addr, const char* string) {
   numBytes = strlen(string) + 1;
   return eeprom_write_bytes(addr, (const byte*)string, numBytes);
 }
-
-
-//
 
 boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
   // Reads a string starting from the specified address.
@@ -213,12 +203,6 @@ boolean eeprom_is_addr_ok(int addr) {
   return ((addr >= EEPROM_MIN_ADDR) && (addr <= EEPROM_MAX_ADDR));
 }
 
-
-
-
-
-
-
 void loop() {
   esp.process();
 
@@ -239,10 +223,8 @@ void loop() {
      mqtt.publish(("/" MQTTCLIENT "/humi"),chHumid);
      mqtt.publish(("/" MQTTCLIENT "/temp"),chTempe);
     }
-
     if (now >= nextSwitch) {
       nextSwitch = switchInterval + now;
-
       if ((switchval>500) && (switchstate == false)) {
         mqtt.publish(("/" MQTTCLIENT "/" MQTTTOPIC0),"s11");
         switchstate = !switchstate;
@@ -252,10 +234,8 @@ void loop() {
         switchstate = !switchstate;
       }
     }
-
     if (now >= nextPulse) {
       nextPulse = pulseInterval +  now;
-
       if ((rel1_pulse == true) && (digitalRead(REL1_PIN) == LOW)) digitalWrite(REL1_PIN,HIGH);
       else if ((rel1_pulse == true) && (digitalRead(REL1_PIN) == HIGH)) {
         rel1_pulse = false;
@@ -277,7 +257,5 @@ void loop() {
       eeprom_read_string(356, tester, 20);
       mqtt.publish(("/" MQTTCLIENT "/tester"),tester);
     }
-
-
   }
 }
