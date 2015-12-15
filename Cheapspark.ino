@@ -7,10 +7,7 @@
 #define SETUPSSIDPW "cheapspark"
 #define SETUPBROKERIP "192.168.1.121"
 #define MQTTSETUPTOPIC "setup"
-#define MYSSID "tim"
-#define MYPASS "PASSWORD"
-#define BROKERIP "192.168.1.121"
-#define MQTTCLIENT "cheapspark1"
+#define MQTTCLIENT "cheapspark99"
 #define MQTTTOPIC0 "commands"
 #define DHT_PIN 5
 #define REL1_PIN 9
