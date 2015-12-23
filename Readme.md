@@ -23,8 +23,10 @@ The wifi settings and broker ip ,used in normal operation mode are held in the E
 To write the settings to the EEPROM bridge analog0(A0) to GND and power the arduino.
 At this point the ESP module will connect to the setup wifi (SETUPSSID in the code) "CSSetupWifi" with password (SETUPSSIDPW in the code) "cheapspark". The setup broker can also be defined in the code  
 
-Send a message on /Cheapspark99/setup containing "WIFISSID WIFIPW IP.OF.BRO.KER MQTTCLIENTNAME" this info wil be interpretted as space delimited and stored in EEPROM.  
+Send a message on /setup containing JSON params for all configs :  
+{"SSID":"yourssid","password":"YourPasswd","broker ip":"192.168.1.125","client name":"Test"}  
 
+Once the settings are written to eeprom a led will light up on the arduino.  
 Remove the bridge between A0 and GND and reboot. The ESP will now connect to the SSID and broker defined in EEPROM
 
 ## Setup
@@ -33,3 +35,5 @@ Add libraries to arduino :
 
 1. [Tuan's espduino lib](https://github.com/tuanpmt/espduino)
 2. [Rob Tillaart's DHT lib](https://github.com/RobTillaart/Arduino)
+3. [Benoît Blanchon's Json Lib](https://github.com/bblanchon/ArduinoJson)
+

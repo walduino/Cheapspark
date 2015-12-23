@@ -67,14 +67,11 @@ void mqttConnected(void* response){
   delay(500);
   if (setupmode == true){
     mqtt.subscribe("/setup");
-//    mqtt.subscribe("/" SETUPMQTTCLIENT "/" SETUPMQTTTOPIC);
     mqtt.publish("/fb","ready4setup");
-
   } else {
     char topic[40];
     strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
     mqtt.subscribe(topic);
-
     char fbmsg[40];
     strcat(strcpy(fbmsg,eepromMqttClientName), " online in normal mode");
     mqtt.publish("/fb",fbmsg);
@@ -82,13 +79,6 @@ void mqttConnected(void* response){
 }
 
 void mqttDisconnected(void* response){}
-
-
-
-
-
-
-
 
 void mqttData(void* response){
   RESPONSE res(response);
@@ -99,7 +89,6 @@ void mqttData(void* response){
     data.toCharArray(buffer,128);
     StaticJsonBuffer<200> jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(buffer);
-
     const char* json_ssid = root["SSID"];
     const char* json_password = root["password"];
     const char* json_brokerip = root["broker ip"];
@@ -176,18 +165,13 @@ void setup(){
   }
 }
 
-boolean eeprom_write_string(int addr, const char* string) {
-  // Writes a string starting at the specified address.
-  // Returns true if the whole string is successfully written.
+boolean eeprom_write_string(int addr, const char* string) {   // Writes a string starting at the specified address. Returns true if the whole string is successfully written.
   int numBytes;
   numBytes = strlen(string) + 1;
   return eeprom_write_bytes(addr, (const byte*)string, numBytes);
 }
 
-boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
-  // Reads a string starting from the specified address.
-  // Returns true if at least one byte (even only the
-  // string terminator one) is read.
+boolean eeprom_read_string(int addr, char* buffer, int bufSize) {  // Reads a string starting from the specified address. Returns true if at least one byte (even only the string terminator one) is read.
   byte ch;  // byte read from eeprom
   int bytesRead;  // number of bytes read so far
   if (!eeprom_is_addr_ok(addr)) return false;   // check start address
@@ -216,7 +200,7 @@ boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
 }
 
 boolean eeprom_write_bytes(int startAddr, const byte* array, int numBytes) {
-  int i;  // counter
+  int i;
   if (!eeprom_is_addr_ok(startAddr) || !eeprom_is_addr_ok(startAddr + numBytes)) return false;   // both first byte and last byte addresses must fall within the allowed range
   for (i = 0; i < numBytes; i++) {
     EEPROM.write(startAddr + i, array[i]);
@@ -276,9 +260,7 @@ void loop() {
     now = millis();
     if (now >= nextPub) {
       char tester[80];
-      // char topic[40];
       nextPub = reportInterval + now;
-      // strcat(strcat(strcpy(topic, "/"), SETUPMQTTCLIENT "/config");
       eeprom_read_string(100, tester, 20);
       mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
       eeprom_read_string(228, tester, 20);
