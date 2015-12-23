@@ -8,7 +8,7 @@ Receive MQTT messages containing commands for relays
 
 ## Why you may need it
 
-My primary use is as a hardware interface for openhab (home automation)  
+My primary use is as a hardware interface for [Openhab](http://www.openhab.org/) (home automation)  
 For this purpose add some lines to your items config looking something like this:
 
 ```
