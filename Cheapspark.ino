@@ -2,11 +2,12 @@
 #include <mqtt.h>
 #include <dht.h>
 #include <EEPROM.h>
+#include <ArduinoJson.h>
 
 
 #define SETUPSSID "CSsetupwifi"
 #define SETUPSSIDPW "cheapspark"
-#define SETUPBROKERIP "192.168.1.125"
+#define SETUPBROKERIP "192.168.43.1"
 #define SETUPMQTTCLIENT "cheapspark666"
 #define MQTTTOPIC0 "commands"
 #define SETUPMQTTTOPIC "setup"
@@ -65,13 +66,15 @@ void wifiCb(void* response){
 void mqttConnected(void* response){
   delay(500);
   if (setupmode == true){
-    mqtt.subscribe("/" SETUPMQTTCLIENT "/" SETUPMQTTTOPIC);
+    mqtt.subscribe("/setup");
+//    mqtt.subscribe("/" SETUPMQTTCLIENT "/" SETUPMQTTTOPIC);
     mqtt.publish("/fb","ready4setup");
+
   } else {
     char topic[40];
     strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
     mqtt.subscribe(topic);
-    
+
     char fbmsg[40];
     strcat(strcpy(fbmsg,eepromMqttClientName), " online in normal mode");
     mqtt.publish("/fb",fbmsg);
@@ -80,28 +83,31 @@ void mqttConnected(void* response){
 
 void mqttDisconnected(void* response){}
 
+
+
+
+
+
+
+
 void mqttData(void* response){
   RESPONSE res(response);
-  char buffer[64];
+  char buffer[128];
   String topic = res.popString();
   String data = res.popString();
   if (setupmode == true){
-    data.toCharArray(buffer,64);
-    char *setupinfo[16];
-    setupinfo[0] = strtok(buffer, " "); //SSID
-    setupinfo[1] = strtok(NULL, " "); //WIFIPW
-    setupinfo[2] = strtok(NULL, " "); //BROKERIP
-    setupinfo[3] = strtok(NULL, " "); //MQTTCLIENTNAME
-    eeprom_write_string(100, setupinfo[0]);
-    eeprom_write_string(228, setupinfo[1]);
-    eeprom_write_string(356, setupinfo[2]);
-    eeprom_write_string(484, setupinfo[3]);
-    char topic[40];
-    strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/config");
-    mqtt.publish(topic,setupinfo[0]);
-    mqtt.publish(topic,setupinfo[1]);
-    mqtt.publish(topic,setupinfo[2]);
-    mqtt.publish(topic,setupinfo[3]);
+    data.toCharArray(buffer,128);
+    StaticJsonBuffer<200> jsonBuffer;
+    JsonObject& root = jsonBuffer.parseObject(buffer);
+
+    const char* json_ssid = root["SSID"];
+    const char* json_password = root["password"];
+    const char* json_brokerip = root["broker ip"];
+    const char* json_clientname = root["client name"];
+    eeprom_write_string(100, (char*)json_ssid);
+    eeprom_write_string(228, (char*)json_password);
+    eeprom_write_string(356, (char*)json_brokerip);
+    eeprom_write_string(484, (char*)json_clientname);
     digitalWrite(ledpin,  !digitalRead(ledpin));
   } else {
     data.toCharArray(buffer,4);
@@ -269,21 +275,18 @@ void loop() {
   if((wifiConnected) && (setupmode == true)) {
     now = millis();
     if (now >= nextPub) {
-      char tester[20];
-      char topic[40];
+      char tester[80];
+      // char topic[40];
       nextPub = reportInterval + now;
-      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/config");
+      // strcat(strcat(strcpy(topic, "/"), SETUPMQTTCLIENT "/config");
       eeprom_read_string(100, tester, 20);
-      mqtt.publish(topic,tester);
-      delay(100);
+      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
       eeprom_read_string(228, tester, 20);
-      mqtt.publish(topic,tester);
-      delay(100);
+      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
       eeprom_read_string(356, tester, 20);
-      mqtt.publish(topic,tester);
-      delay(100);
+      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
       eeprom_read_string(484, tester, 20);
-      mqtt.publish(topic,tester);
+      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
     }
   }
 }
