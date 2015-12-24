@@ -25,7 +25,7 @@ At this point the ESP module will connect to the setup wifi (SETUPSSID in the co
 
 Send a message on /setup containing JSON params for all configs :  
 {"SSID":"yourssid","password":"YourPasswd","broker ip":"192.168.1.125","client name":"Test"}  
-(This can be facilitated by the ['fajrero'](https://github.com/timvanginderen/fajrero) app
+(This can be facilitated by the ['fajrero'](https://github.com/timvanginderen/fajrero) app)
 
 Once the settings are written to eeprom a led will light up on the arduino.  
 Remove the bridge between A0 and GND and reboot. The ESP will now connect to the SSID and broker defined in EEPROM
