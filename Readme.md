@@ -8,7 +8,7 @@ Receive MQTT messages containing commands for relays
 
 ## Why you may need it
 
-My primary use is as a hardware interface for openhab (home automation)  
+My primary use is as a hardware interface for [Openhab](http://www.openhab.org/) (home automation)  
 For this purpose add some lines to your items config looking something like this:
 
 ```
@@ -25,6 +25,7 @@ At this point the ESP module will connect to the setup wifi (SETUPSSID in the co
 
 Send a message on /setup containing JSON params for all configs :  
 {"SSID":"yourssid","password":"YourPasswd","broker ip":"192.168.1.125","client name":"Test"}  
+(This can be facilitated by the ['fajrero'](https://github.com/timvanginderen/fajrero) app)
 
 Once the settings are written to eeprom a led will light up on the arduino.  
 Remove the bridge between A0 and GND and reboot. The ESP will now connect to the SSID and broker defined in EEPROM
