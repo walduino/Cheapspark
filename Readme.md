@@ -31,6 +31,8 @@ Once the settings are written to eeprom a led will light up on the arduino.
 Remove the bridge between A0 and GND and reboot. The ESP will now connect to the SSID and broker defined in EEPROM
 
 ## Setup
+Hardware setup can be looked at in Tuan's espuino repo  
+Or u can use my [PCB Design](https://github.com/walduino/Cheapspark-PCB) (other repo)
 
 Add libraries to arduino : 
 
