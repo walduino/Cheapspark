@@ -11,7 +11,7 @@
 #define SETUPMQTTCLIENT "cheapspark666"
 #define MQTTTOPIC0 "commands"
 #define SETUPMQTTTOPIC "setup"
-#define DHT_PIN 5
+#define DHT_PIN 8
 #define REL1_PIN 9
 #define REL2_PIN 10
 #define REL3_PIN 11
@@ -34,7 +34,10 @@ unsigned long nextSwitch = switchInterval;
 unsigned long nextPulse = pulseInterval;
 int ledpin = 13;
 boolean setupmode = false;
-boolean switchstate = false;
+boolean switchstate0 = false;
+boolean switchstate1 = false;
+boolean switchstate2 = false;
+boolean switchstate3 = false;
 boolean rel1_pulse = false;
 boolean rel2_pulse = false;
 boolean rel3_pulse = false;
@@ -67,11 +70,14 @@ void mqttConnected(void* response){
   delay(500);
   if (setupmode == true){
     mqtt.subscribe("/setup");
+//    mqtt.subscribe("/" SETUPMQTTCLIENT "/" SETUPMQTTTOPIC);
     mqtt.publish("/fb","ready4setup");
+
   } else {
     char topic[40];
     strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
     mqtt.subscribe(topic);
+
     char fbmsg[40];
     strcat(strcpy(fbmsg,eepromMqttClientName), " online in normal mode");
     mqtt.publish("/fb",fbmsg);
@@ -79,6 +85,13 @@ void mqttConnected(void* response){
 }
 
 void mqttDisconnected(void* response){}
+
+
+
+
+
+
+
 
 void mqttData(void* response){
   RESPONSE res(response);
@@ -89,6 +102,7 @@ void mqttData(void* response){
     data.toCharArray(buffer,128);
     StaticJsonBuffer<200> jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(buffer);
+
     const char* json_ssid = root["SSID"];
     const char* json_password = root["password"];
     const char* json_brokerip = root["broker ip"];
@@ -119,7 +133,14 @@ void mqttPublished(void* response){}   //runs when publish is a success
 
 void setup(){
   pinMode(A0,INPUT);
+  pinMode(A1,INPUT);
+  pinMode(A2,INPUT);
+  pinMode(A3,INPUT);
   digitalWrite(A0,HIGH);
+  digitalWrite(A1,HIGH);
+  digitalWrite(A2,HIGH);
+  digitalWrite(A3,HIGH);
+
   pinMode(REL1_PIN,OUTPUT);
   pinMode(REL2_PIN,OUTPUT);
   pinMode(REL3_PIN,OUTPUT);
@@ -165,13 +186,18 @@ void setup(){
   }
 }
 
-boolean eeprom_write_string(int addr, const char* string) {   // Writes a string starting at the specified address. Returns true if the whole string is successfully written.
+boolean eeprom_write_string(int addr, const char* string) {
+  // Writes a string starting at the specified address.
+  // Returns true if the whole string is successfully written.
   int numBytes;
   numBytes = strlen(string) + 1;
   return eeprom_write_bytes(addr, (const byte*)string, numBytes);
 }
 
-boolean eeprom_read_string(int addr, char* buffer, int bufSize) {  // Reads a string starting from the specified address. Returns true if at least one byte (even only the string terminator one) is read.
+boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
+  // Reads a string starting from the specified address.
+  // Returns true if at least one byte (even only the
+  // string terminator one) is read.
   byte ch;  // byte read from eeprom
   int bytesRead;  // number of bytes read so far
   if (!eeprom_is_addr_ok(addr)) return false;   // check start address
@@ -200,7 +226,7 @@ boolean eeprom_read_string(int addr, char* buffer, int bufSize) {  // Reads a st
 }
 
 boolean eeprom_write_bytes(int startAddr, const byte* array, int numBytes) {
-  int i;
+  int i;  // counter
   if (!eeprom_is_addr_ok(startAddr) || !eeprom_is_addr_ok(startAddr + numBytes)) return false;   // both first byte and last byte addresses must fall within the allowed range
   for (i = 0; i < numBytes; i++) {
     EEPROM.write(startAddr + i, array[i]);
@@ -218,7 +244,11 @@ void loop() {
  if((wifiConnected) && (setupmode == false)) {
     char topic[40];
     now = millis();
-    int switchval = analogRead(0);
+    int switchval0 = analogRead(0);
+    int switchval1 = analogRead(1);
+    int switchval2 = analogRead(2);
+    int switchval3 = analogRead(3);
+
 
     if (now >= nextPub) {
       nextPub = reportInterval + now;
@@ -237,13 +267,41 @@ void loop() {
     if (now >= nextSwitch) {
       nextSwitch = switchInterval + now;
       strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
-      if ((switchval>500) && (switchstate == false)) {
-        mqtt.publish(topic,"s11");
-        switchstate = !switchstate;
+
+      if ((switchval0>500) && (switchstate0 == false)) {
+        mqtt.publish(topic,"s00");
+        switchstate0 = !switchstate0;
       }
-      if ((switchval<500) && (switchstate == true)) {
+      if ((switchval0<500) && (switchstate0 == true)) {
+        mqtt.publish(topic,"s01");
+        switchstate0 = !switchstate0;
+      }
+
+      if ((switchval1>500) && (switchstate1 == false)) {
         mqtt.publish(topic,"s10");
-        switchstate = !switchstate;
+        switchstate1 = !switchstate1;
+      }
+      if ((switchval1<500) && (switchstate1 == true)) {
+        mqtt.publish(topic,"s11");
+        switchstate1 = !switchstate1;
+      }
+
+      if ((switchval2>500) && (switchstate2 == false)) {
+        mqtt.publish(topic,"s30");
+        switchstate2 = !switchstate2;
+      }
+      if ((switchval2<500) && (switchstate2 == true)) {
+        mqtt.publish(topic,"s31");
+        switchstate2 = !switchstate2;
+      }
+
+      if ((switchval3>500) && (switchstate3 == false)) {
+        mqtt.publish(topic,"s20");
+        switchstate3 = !switchstate3;
+      }
+      if ((switchval3<500) && (switchstate3 == true)) {
+        mqtt.publish(topic,"s21");
+        switchstate3 = !switchstate3;
       }
     }
     if (now >= nextPulse) {
@@ -260,7 +318,9 @@ void loop() {
     now = millis();
     if (now >= nextPub) {
       char tester[80];
+      // char topic[40];
       nextPub = reportInterval + now;
+      // strcat(strcat(strcpy(topic, "/"), SETUPMQTTCLIENT "/config");
       eeprom_read_string(100, tester, 20);
       mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
       eeprom_read_string(228, tester, 20);
