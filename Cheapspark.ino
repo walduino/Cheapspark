@@ -9,7 +9,8 @@
 #define SETUPSSIDPW "cheapspark"
 #define SETUPBROKERIP "192.168.43.1"
 #define SETUPMQTTCLIENT "cheapspark666"
-#define MQTTTOPIC0 "commands"
+#define MQTTTOPIC0 "incoming"
+#define MQTTTOPIC1 "outgoing"
 #define SETUPMQTTTOPIC "setup"
 #define DHT_PIN 8
 #define REL1_PIN 9
@@ -76,7 +77,7 @@ void mqttConnected(void* response){
   } else {
     char topic[40];
     strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
-    mqtt.subscribe(topic);
+    mqtt.subscribe(topic,1);
 
     char fbmsg[40];
     strcat(strcpy(fbmsg,eepromMqttClientName), " online in normal mode");
@@ -266,41 +267,41 @@ void loop() {
     }
     if (now >= nextSwitch) {
       nextSwitch = switchInterval + now;
-      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
+      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC1);
 
       if ((switchval0>500) && (switchstate0 == false)) {
-        mqtt.publish(topic,"s00");
+        mqtt.publish(topic,"s00",1,0);
         switchstate0 = !switchstate0;
       }
       if ((switchval0<500) && (switchstate0 == true)) {
-        mqtt.publish(topic,"s01");
+        mqtt.publish(topic,"s01",1,0);
         switchstate0 = !switchstate0;
       }
 
       if ((switchval1>500) && (switchstate1 == false)) {
-        mqtt.publish(topic,"s10");
+        mqtt.publish(topic,"s10",1,0);
         switchstate1 = !switchstate1;
       }
       if ((switchval1<500) && (switchstate1 == true)) {
-        mqtt.publish(topic,"s11");
+        mqtt.publish(topic,"s11",1,0);
         switchstate1 = !switchstate1;
       }
 
       if ((switchval2>500) && (switchstate2 == false)) {
-        mqtt.publish(topic,"s30");
+        mqtt.publish(topic,"s30",1,0);
         switchstate2 = !switchstate2;
       }
       if ((switchval2<500) && (switchstate2 == true)) {
-        mqtt.publish(topic,"s31");
+        mqtt.publish(topic,"s31",1,0);
         switchstate2 = !switchstate2;
       }
 
       if ((switchval3>500) && (switchstate3 == false)) {
-        mqtt.publish(topic,"s20");
+        mqtt.publish(topic,"s20",1,0);
         switchstate3 = !switchstate3;
       }
       if ((switchval3<500) && (switchstate3 == true)) {
-        mqtt.publish(topic,"s21");
+        mqtt.publish(topic,"s21",1,0);
         switchstate3 = !switchstate3;
       }
     }
