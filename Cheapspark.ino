@@ -39,6 +39,7 @@ boolean switchstate0 = false;
 boolean switchstate1 = false;
 boolean switchstate2 = false;
 boolean switchstate3 = false;
+boolean switchstate4 = false;
 boolean rel1_pulse = false;
 boolean rel2_pulse = false;
 boolean rel3_pulse = false;
@@ -137,10 +138,12 @@ void setup(){
   pinMode(A1,INPUT);
   pinMode(A2,INPUT);
   pinMode(A3,INPUT);
+  pinMode(A4,INPUT);
   digitalWrite(A0,HIGH);
   digitalWrite(A1,HIGH);
   digitalWrite(A2,HIGH);
   digitalWrite(A3,HIGH);
+  digitalWrite(A4,HIGH);
 
   pinMode(REL1_PIN,OUTPUT);
   pinMode(REL2_PIN,OUTPUT);
@@ -249,7 +252,7 @@ void loop() {
     int switchval1 = analogRead(1);
     int switchval2 = analogRead(2);
     int switchval3 = analogRead(3);
-
+    int switchval4 = analogRead(4);
 
     if (now >= nextPub) {
       nextPub = reportInterval + now;
@@ -265,10 +268,8 @@ void loop() {
       strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/temp");
       mqtt.publish(topic,chTempe);
     }
-    if (now >= nextSwitch) {
-      nextSwitch = switchInterval + now;
+//reading switches
       strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC1);
-
       if ((switchval0>500) && (switchstate0 == false)) {
         mqtt.publish(topic,"s00",1,0);
         switchstate0 = !switchstate0;
@@ -304,7 +305,16 @@ void loop() {
         mqtt.publish(topic,"s21",1,0);
         switchstate3 = !switchstate3;
       }
-    }
+
+      if ((switchval4>500) && (switchstate4 == false)) {
+        mqtt.publish(topic,"PIR1",1,0); //inverted pir sensors are NC
+        switchstate4 = !switchstate4;
+      }
+      if ((switchval4<500) && (switchstate4 == true)) {
+        mqtt.publish(topic,"PIR0",1,0);
+        switchstate4 = !switchstate4;
+      }
+
     if (now >= nextPulse) {
       nextPulse = pulseInterval +  now;
       if ((rel1_pulse == true) && (digitalRead(REL1_PIN) == LOW)) digitalWrite(REL1_PIN,HIGH);
