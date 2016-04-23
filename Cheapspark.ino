@@ -1,30 +1,20 @@
-#include <espduino.h>
-#include <mqtt.h>
+#include <ELClient.h>
+#include <ELClientMqtt.h>
+
 #include <dht.h>
-#include <EEPROM.h>
-#include <ArduinoJson.h>
 
-
-#define SETUPSSID "CSsetupwifi"
-#define SETUPSSIDPW "cheapspark"
-#define SETUPBROKERIP "192.168.43.1"
-#define SETUPMQTTCLIENT "cheapspark666"
 #define MQTTTOPIC0 "incoming"
 #define MQTTTOPIC1 "outgoing"
-#define SETUPMQTTTOPIC "setup"
 #define DHT_PIN 8
 #define REL1_PIN 9
 #define REL2_PIN 10
 #define REL3_PIN 11
 #define REL4_PIN 12
 
+ELClient esp(&Serial, &Serial); // Initialize a connection to esp-link using the normal hardware serial port both for SLIP and for debug messages.
+ELClientMqtt mqtt(&esp);
 
-ESP esp(&Serial, 4);
-MQTT mqtt(&esp);
-
-const int EEPROM_MIN_ADDR = 0;
-const int EEPROM_MAX_ADDR = 511;
-char eepromMqttClientName[20];
+char HostName[20];
 boolean wifiConnected = false;
 int reportInterval =  15000;
 int switchInterval = 100;
@@ -34,7 +24,6 @@ unsigned long nextPub = 30000;
 unsigned long nextSwitch = switchInterval;
 unsigned long nextPulse = pulseInterval;
 int ledpin = 13;
-boolean setupmode = false;
 boolean switchstate0 = false;
 boolean switchstate1 = false;
 boolean switchstate2 = false;
@@ -46,94 +35,70 @@ boolean rel3_pulse = false;
 boolean rel4_pulse = false;
 dht DHT;
 
-void wifiCb(void* response){
-  uint32_t status;
-  RESPONSE res(response);
-  if(res.getArgc() == 1) {
-    res.popArgs((uint8_t*)&status, 4);
-    if(status == STATION_GOT_IP) {        //WIFI CONNECTED
-      if (setupmode == true){
-        mqtt.connect(SETUPBROKERIP, 1883, false);
-        wifiConnected = true;
-      } else {
-        char eepromBroker[20];
-        eeprom_read_string(356, eepromBroker, 20); //broker adress
-        mqtt.connect(eepromBroker, 1883, false);
-        wifiConnected = true;
-      }
+// Callback made from esp-link to notify of wifi status changes
+// Here we just print something out for grins
+void wifiCb(void* response) {
+  ELClientResponse *res = (ELClientResponse*)response;
+  if (res->argc() == 1) {
+    uint8_t status;
+    res->popArg(&status, 1);
+
+    if(status == STATION_GOT_IP) {
+      Serial.println("WIFI CONNECTED");
     } else {
-      wifiConnected = false;
-      mqtt.disconnect();
+      Serial.print("WIFI NOT READY: ");
+      Serial.println(status);
     }
   }
 }
 
-void mqttConnected(void* response){
-  delay(500);
-  if (setupmode == true){
-    mqtt.subscribe("/setup");
-//    mqtt.subscribe("/" SETUPMQTTCLIENT "/" SETUPMQTTTOPIC);
-    mqtt.publish("/fb","ready4setup");
+// Callback when MQTT is connected
+void mqttConnected(void* response) {
+  Serial.println("MQTT connected!");
 
-  } else {
-    char topic[40];
-    strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC0);
-    mqtt.subscribe(topic,1);
+  char topic[40];
+  strcat(strcat(strcpy(topic, "/"), HostName), "/" MQTTTOPIC0);
+  mqtt.subscribe(topic,1);
 
-    char fbmsg[40];
-    strcat(strcpy(fbmsg,eepromMqttClientName), " online in normal mode");
-    mqtt.publish("/fb",fbmsg);
-  }
+  wifiConnected = true;
 }
 
-void mqttDisconnected(void* response){}
-
-
-
-
-
-
-
+// Callback when MQTT is disconnected
+void mqttDisconnected(void* response) {
+  Serial.println("MQTT disconnected");
+  wifiConnected = false;
+}
 
 void mqttData(void* response){
-  RESPONSE res(response);
-  char buffer[128];
-  String topic = res.popString();
-  String data = res.popString();
-  if (setupmode == true){
-    data.toCharArray(buffer,128);
-    StaticJsonBuffer<200> jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(buffer);
+  ELClientResponse *res = (ELClientResponse *)response;
 
-    const char* json_ssid = root["SSID"];
-    const char* json_password = root["password"];
-    const char* json_brokerip = root["broker ip"];
-    const char* json_clientname = root["client name"];
-    eeprom_write_string(100, (char*)json_ssid);
-    eeprom_write_string(228, (char*)json_password);
-    eeprom_write_string(356, (char*)json_brokerip);
-    eeprom_write_string(484, (char*)json_clientname);
-    digitalWrite(ledpin,  !digitalRead(ledpin));
-  } else {
-    data.toCharArray(buffer,4);
-    if (strcmp(buffer,"r11") == 0) digitalWrite(REL1_PIN,HIGH);
-    else if (strcmp(buffer,"r10") == 0) digitalWrite(REL1_PIN,LOW);
-    else if (strcmp(buffer,"r1p") == 0) rel1_pulse = true;
-    else if (strcmp(buffer,"r21") == 0) digitalWrite(REL2_PIN,HIGH);
-    else if (strcmp(buffer,"r20") == 0) digitalWrite(REL2_PIN,LOW);
-    else if (strcmp(buffer,"r2p") == 0) rel2_pulse = true;
-    else if (strcmp(buffer,"r31") == 0) digitalWrite(REL3_PIN,HIGH);
-    else if (strcmp(buffer,"r30") == 0) digitalWrite(REL3_PIN,LOW);
-    else if (strcmp(buffer,"r3p") == 0) rel3_pulse = true;
-    else if (strcmp(buffer,"r41") == 0) digitalWrite(REL4_PIN,HIGH);
-    else if (strcmp(buffer,"r40") == 0) digitalWrite(REL4_PIN,LOW);
-    else if (strcmp(buffer,"r4p") == 0) rel4_pulse = true;
-  }
+  String topic = res->popString();
+  String data = res->popString();
+  char buffer[4];
+
+  data.toCharArray(buffer,4);
+  if (strcmp(buffer,"r11") == 0) digitalWrite(REL1_PIN,HIGH);
+  else if (strcmp(buffer,"r10") == 0) digitalWrite(REL1_PIN,LOW);
+  else if (strcmp(buffer,"r1p") == 0) rel1_pulse = true;
+  else if (strcmp(buffer,"r21") == 0) digitalWrite(REL2_PIN,HIGH);
+  else if (strcmp(buffer,"r20") == 0) digitalWrite(REL2_PIN,LOW);
+  else if (strcmp(buffer,"r2p") == 0) rel2_pulse = true;
+  else if (strcmp(buffer,"r31") == 0) digitalWrite(REL3_PIN,HIGH);
+  else if (strcmp(buffer,"r30") == 0) digitalWrite(REL3_PIN,LOW);
+  else if (strcmp(buffer,"r3p") == 0) rel3_pulse = true;
+  else if (strcmp(buffer,"r41") == 0) digitalWrite(REL4_PIN,HIGH);
+  else if (strcmp(buffer,"r40") == 0) digitalWrite(REL4_PIN,LOW);
+  else if (strcmp(buffer,"r4p") == 0) rel4_pulse = true;
 }
 
-void mqttPublished(void* response){}   //runs when publish is a success
+void mqttPublished(void* response) {
+  Serial.println("MQTT published");
+}
+
+
 
 void setup(){
+  delay(2000);
   pinMode(A0,INPUT);
   pinMode(A1,INPUT);
   pinMode(A2,INPUT);
@@ -149,103 +114,47 @@ void setup(){
   pinMode(REL2_PIN,OUTPUT);
   pinMode(REL3_PIN,OUTPUT);
   pinMode(REL4_PIN,OUTPUT);
-  if (analogRead(0)<500) setupmode = true;
-  eeprom_read_string(484, eepromMqttClientName, 20); // read client name intro global var
-  //setup ESP
-  delay(5000);
-  Serial.begin(19200);
-  esp.enable();
-  delay(500);
-  esp.reset();
-  delay(500);
-  while(!esp.ready());
-  //setup mqtt client");
-  if (setupmode == true){
-    if(!mqtt.begin(SETUPMQTTCLIENT, "", "", 30, 1)) {
-      while(1);
-    }
-  } else {
-    if(!mqtt.begin(eepromMqttClientName, "", "", 30, 1)) {
-      while(1);
-    }
-  }
+
+  //setup EL-Link
+    Serial.begin(115200);
+  Serial.println("EL-Client starting!");
+
+  // Sync-up with esp-link, this is required at the start of any sketch and initializes the
+  // callbacks to the wifi status change callback. The callback gets called with the initial
+  // status right after Sync() below completes.
+  esp.wifiCb.attach(wifiCb); // wifi status change callback, optional (delete if not desired)
+  bool ok;
+  do {
+    ok = esp.Sync();      // sync up with esp-link, blocks for up to 2 seconds
+    if (!ok) Serial.println("EL-Client sync failed!");
+  } while(!ok);
+  Serial.println("EL-Client synced!");
+
+  // Look hostname up
+  lookupHostname(HostName);
+  Serial.print("Setup - Hostname: ");
+  Serial.println(HostName);
+
+  // Set-up callbacks for events and initialize with es-link.
+  mqtt.connectedCb.attach(mqttConnected);
+  mqtt.disconnectedCb.attach(mqttDisconnected);
+  mqtt.publishedCb.attach(mqttPublished);
+  mqtt.dataCb.attach(mqttData);
+  mqtt.setup();
+
+
   //setup mqtt lwt
   char ch_lwt[40];
-  strcat(strcpy(ch_lwt,eepromMqttClientName), " offline");
+  strcat(strcpy(ch_lwt,HostName), " offline");
   mqtt.lwt("/lwt", ch_lwt, 0, 0);
-  //setup mqtt events
-  mqtt.connectedCb.attach(&mqttConnected);
-  mqtt.disconnectedCb.attach(&mqttDisconnected);
-  mqtt.publishedCb.attach(&mqttPublished);
-  mqtt.dataCb.attach(&mqttData);
-  //setup wifi
-  esp.wifiCb.attach(&wifiCb);
-  if (setupmode == true) esp.wifiConnect(SETUPSSID,SETUPSSIDPW);
-  else {
-    char eepromSsid[20];
-    char eepromWifiPw[20];
-    eeprom_read_string(100, eepromSsid, 20); //ssid
-    eeprom_read_string(228, eepromWifiPw, 20); // wifipasswd
-    esp.wifiConnect(eepromSsid,eepromWifiPw);
-  }
-}
 
-boolean eeprom_write_string(int addr, const char* string) {
-  // Writes a string starting at the specified address.
-  // Returns true if the whole string is successfully written.
-  int numBytes;
-  numBytes = strlen(string) + 1;
-  return eeprom_write_bytes(addr, (const byte*)string, numBytes);
-}
-
-boolean eeprom_read_string(int addr, char* buffer, int bufSize) {
-  // Reads a string starting from the specified address.
-  // Returns true if at least one byte (even only the
-  // string terminator one) is read.
-  byte ch;  // byte read from eeprom
-  int bytesRead;  // number of bytes read so far
-  if (!eeprom_is_addr_ok(addr)) return false;   // check start address
-  if (bufSize == 0) return false;   // how can we store bytes in an empty buffer ?
-  if (bufSize == 1) {   // is there is room for the string terminator only,no reason to go further
-    buffer[0] = 0;
-    return true;
-  }
-  bytesRead = 0;   // initialize byte counter
-  ch = EEPROM.read(addr + bytesRead);   // read next byte from eeprom
-  buffer[bytesRead] = ch;   // store it into the user buffer
-  bytesRead++;   // increment byte counter
-
-  // stop conditions:
-  // - the character just read is the string terminator one (0x00)
-  // - we have filled the user buffer
-  // - we have reached the last eeprom address
-  while ( (ch != 0x00) && (bytesRead < bufSize) && ((addr + bytesRead) <= EEPROM_MAX_ADDR) ) {
-    ch = EEPROM.read(addr + bytesRead);     // if no stop condition is met, read the next byte from eeprom
-    buffer[bytesRead] = ch;     // store it into the user buffer
-    bytesRead++;     // increment byte counter
-
-  }
-  if ((ch != 0x00) && (bytesRead >= 1)) buffer[bytesRead - 1] = 0;  // make sure the user buffer has a string terminator (0x00) as its last byte
-  return true;
-}
-
-boolean eeprom_write_bytes(int startAddr, const byte* array, int numBytes) {
-  int i;  // counter
-  if (!eeprom_is_addr_ok(startAddr) || !eeprom_is_addr_ok(startAddr + numBytes)) return false;   // both first byte and last byte addresses must fall within the allowed range
-  for (i = 0; i < numBytes; i++) {
-    EEPROM.write(startAddr + i, array[i]);
-  }
-  return true;
-}
-
-boolean eeprom_is_addr_ok(int addr) {
-  return ((addr >= EEPROM_MIN_ADDR) && (addr <= EEPROM_MAX_ADDR));
+  Serial.println("EL-MQTT ready");
 }
 
 void loop() {
-  esp.process();
+  esp.Process();
 
- if((wifiConnected) && (setupmode == false)) {
+ if(wifiConnected) {
     char topic[40];
     now = millis();
     int switchval0 = analogRead(0);
@@ -253,6 +162,7 @@ void loop() {
     int switchval2 = analogRead(2);
     int switchval3 = analogRead(3);
     int switchval4 = analogRead(4);
+
 
     if (now >= nextPub) {
       nextPub = reportInterval + now;
@@ -263,57 +173,58 @@ void loop() {
       char chTempe[10];
       dtostrf(humid,1,2,chHumid);
       dtostrf(tempe,1,2,chTempe);
-      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/humi");
+      strcat(strcat(strcpy(topic, "/"), HostName), "/humi");
       mqtt.publish(topic,chHumid);
-      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/temp");
+      strcat(strcat(strcpy(topic, "/"), HostName), "/temp");
       mqtt.publish(topic,chTempe);
     }
-//reading switches
-      strcat(strcat(strcpy(topic, "/"), eepromMqttClientName), "/" MQTTTOPIC1);
-      if ((switchval0>500) && (switchstate0 == false)) {
-        mqtt.publish(topic,"s00",1,0);
-        switchstate0 = !switchstate0;
-      }
-      if ((switchval0<500) && (switchstate0 == true)) {
-        mqtt.publish(topic,"s01",1,0);
-        switchstate0 = !switchstate0;
-      }
 
-      if ((switchval1>500) && (switchstate1 == false)) {
-        mqtt.publish(topic,"s10",1,0);
-        switchstate1 = !switchstate1;
-      }
-      if ((switchval1<500) && (switchstate1 == true)) {
-        mqtt.publish(topic,"s11",1,0);
-        switchstate1 = !switchstate1;
-      }
+    //reading switch
+    strcat(strcat(strcpy(topic, "/"), HostName), "/" MQTTTOPIC1);
+    if ((switchval0>500) && (switchstate0 == false)) {
+      mqtt.publish(topic,"s00",1,0);
+      switchstate0 = !switchstate0;
+    }
+    if ((switchval0<500) && (switchstate0 == true)) {
+      mqtt.publish(topic,"s01",1,0);
+      switchstate0 = !switchstate0;
+    }
 
-      if ((switchval2>500) && (switchstate2 == false)) {
-        mqtt.publish(topic,"s30",1,0);
-        switchstate2 = !switchstate2;
-      }
-      if ((switchval2<500) && (switchstate2 == true)) {
-        mqtt.publish(topic,"s31",1,0);
-        switchstate2 = !switchstate2;
-      }
+    if ((switchval1>500) && (switchstate1 == false)) {
+      mqtt.publish(topic,"s10",1,0);
+      switchstate1 = !switchstate1;
+    }
+    if ((switchval1<500) && (switchstate1 == true)) {
+      mqtt.publish(topic,"s11",1,0);
+      switchstate1 = !switchstate1;
+    }
 
-      if ((switchval3>500) && (switchstate3 == false)) {
-        mqtt.publish(topic,"s20",1,0);
-        switchstate3 = !switchstate3;
-      }
-      if ((switchval3<500) && (switchstate3 == true)) {
-        mqtt.publish(topic,"s21",1,0);
-        switchstate3 = !switchstate3;
-      }
+    if ((switchval2>500) && (switchstate2 == false)) {
+      mqtt.publish(topic,"s30",1,0);
+      switchstate2 = !switchstate2;
+    }
+    if ((switchval2<500) && (switchstate2 == true)) {
+      mqtt.publish(topic,"s31",1,0);
+      switchstate2 = !switchstate2;
+    }
 
-      if ((switchval4>500) && (switchstate4 == false)) {
-        mqtt.publish(topic,"PIR1",1,0); //inverted pir sensors are NC
-        switchstate4 = !switchstate4;
-      }
-      if ((switchval4<500) && (switchstate4 == true)) {
-        mqtt.publish(topic,"PIR0",1,0);
-        switchstate4 = !switchstate4;
-      }
+    if ((switchval3>500) && (switchstate3 == false)) {
+      mqtt.publish(topic,"s20",1,0);
+      switchstate3 = !switchstate3;
+    }
+    if ((switchval3<500) && (switchstate3 == true)) {
+      mqtt.publish(topic,"s21",1,0);
+      switchstate3 = !switchstate3;
+    }
+
+    if ((switchval4>500) && (switchstate4 == false)) {
+      mqtt.publish(topic,"PIR1",1,0); //inverted pir sensors are NC
+      switchstate4 = !switchstate4;
+    }
+    if ((switchval4<500) && (switchstate4 == true)) {
+      mqtt.publish(topic,"PIR0",1,0);
+      switchstate4 = !switchstate4;
+    }
 
     if (now >= nextPulse) {
       nextPulse = pulseInterval +  now;
@@ -324,22 +235,18 @@ void loop() {
       }
     }
   }
+}
 
-  if((wifiConnected) && (setupmode == true)) {
-    now = millis();
-    if (now >= nextPub) {
-      char tester[80];
-      // char topic[40];
-      nextPub = reportInterval + now;
-      // strcat(strcat(strcpy(topic, "/"), SETUPMQTTCLIENT "/config");
-      eeprom_read_string(100, tester, 20);
-      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
-      eeprom_read_string(228, tester, 20);
-      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
-      eeprom_read_string(356, tester, 20);
-      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
-      eeprom_read_string(484, tester, 20);
-      mqtt.publish("/" SETUPMQTTCLIENT "/echo",tester);
-    }
+// Requests hostname and puts it result in theHostname
+void lookupHostname (char * aHostname)
+{
+  esp.GetHostname();
+  ELClientPacket *packet;
+
+  if ((packet=esp.WaitReturn()) != NULL) {
+    // Create Response from packet
+    ELClientResponse resp = (ELClientResponse)packet;
+    
+    resp.popArg(aHostname,packet->value);
   }
 }
